@@ -61,9 +61,10 @@ def native_engine(monkeypatch):
         sys.modules, "sglang.srt.server_args", SimpleNamespace(ServerArgs=make_dataclass("ServerArgs", fields))
     )
     launched, events = [], []
-    process = SimpleNamespace()
+    process = SimpleNamespace(pid=4321)
     monkeypatch.setattr(module, "launch_engine", lambda options: launched.append(options) or process)
     monkeypatch.setattr(module, "wait_ready", lambda *args: events.append("ready"))
+    monkeypatch.setattr(module, "check_server_owner", lambda *args: events.append(("owner", *args)))
     monkeypatch.setattr(ReefSGLangEngine, "get_runtime_load_id", lambda self: "engine:1")
     monkeypatch.setattr(
         ReefSGLangEngine, "_sync_scheduler_runtime_load_id", lambda self, version: events.append(version)
@@ -87,7 +88,7 @@ def test_native_launch_uses_supplied_placement_and_versions_before_registration(
     assert launched[0]["node_rank"] == 0
     assert launched[0]["base_gpu_id"] == 4
     assert launched[0]["cuda_graph_backend_prefill"] == "disabled"
-    assert events == ["ready", "engine:1", "register"]
+    assert events == ["ready", ("owner", "10.0.0.1", 16000, 4321), "engine:1", "register"]
 
 
 def test_nonzero_node_does_not_register_or_read_http(native_engine):
